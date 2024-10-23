@@ -1,0 +1,103 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Poetry specific files
+.poetry/
+
+# Test output
+.coverage
+*.cover
+htmlcov/
+.tox/
+.nox/
+
+# Cache
+*.log
+*.pot
+*.cache
+.cache/
+pytest_cache/
+.pytest_cache/
+
+# Pytest and Test Artifacts
+.coverage
+.cache
+*.cover
+.cache/
+.pytest_cache/
+htmlcov/
+.cache
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Python package files
+*.egg
+*.egg-info/
+dist/
+build/
+*.egg-info/
+eggs/
+
+# MyPy cache
+.mypy_cache/
+
+# Pyre cache
+.pyre/
+
+# Pylint cache
+.pylint.d/
+
+# Flask/Django Secret key files or other sensitive settings
+*.pem
+.env
+*.env
+
+# Temporary files
+*.bak
+*.orig
+*.rej
+
+# Coverage reports
+.coverage
+.coverage.*
+.cache
+
+# Debugger configurations
+__debug__/
+
+# Profiling data
+prof/
+
+# Local database
+*.sqlite3
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+log/
+
+# Poetry lock file
+poetry.lock
