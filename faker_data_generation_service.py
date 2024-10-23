@@ -25,14 +25,14 @@ def load_schema(file_path):
         ValueError: If the file format is not supported.
     """
     file_extension = os.path.splitext(file_path)[-1].lower()
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         if file_extension in ['.yaml', '.yml']:
             return yaml.safe_load(file)
-        elif file_extension == '.json':
+        if file_extension == '.json':
             return json.load(file)
-        else:
-            raise ValueError("Unsupported file format. Please provide a .yaml, .yml, or .json file.")
-
+        
+        raise ValueError("Unsupported file format. Please provide a .yaml, .yml, or .json file.")
+        
 def generate_fake_data(schema, num_records=10):
     """
     Generate fake data based on a given schema.
