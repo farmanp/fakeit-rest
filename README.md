@@ -15,8 +15,8 @@ This project is a Python-based API for generating fake data using **FastAPI** an
 ```
 .
 ├── api.py                # Contains REST API endpoints
-├── faker_data_generator_service.py  # Utility functions for schema loading and data generation
 ├── app.py                # Entry point for FastAPI including both REST and WebSocket routes
+├── faker_data_generator_service.py  # Utility functions for schema loading and data generation
 ├── pyproject.toml        # Python dependencies for the project
 └── README.md             # This README file
 ```
