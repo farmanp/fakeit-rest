@@ -4,13 +4,25 @@ import json
 import os
 from typing import Any, AsyncGenerator, List
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 from faker_data_generation_service import generate_fake_data
 from models.models import SchemaInput
 
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded,
+    lambda request, exc: HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded"),
+)
+app.add_middleware(SlowAPIMiddleware)
 
 
 # Helper function to serialize data for JSON
@@ -58,7 +70,8 @@ async def stream_data_in_batches(schema_dict: dict[str, Any], num_records: int) 
 
 # Endpoint for generating a single record of fake data
 @app.post("/generate-single", response_model=None)
-async def generate_single(schema: SchemaInput) -> dict[str, Any]:
+@limiter.limit("5/minute")
+async def generate_single(request: Request, schema: SchemaInput) -> dict[str, Any]:
     try:
         # Convert SchemaInput to dict and generate one record
         schema_dict: dict[str, Any] = schema.model_dump_json()
@@ -70,8 +83,9 @@ async def generate_single(schema: SchemaInput) -> dict[str, Any]:
 
 # Endpoint for generating batch fake data
 @app.post("/generate-batch", response_model=None)
+@limiter.limit("10/minute")
 async def generate_batch(
-    schema: SchemaInput, background_tasks: BackgroundTasks, num_records: int = 10
+    request: Request, schema: SchemaInput, background_tasks: BackgroundTasks, num_records: int = 10
 ) -> StreamingResponse:
     try:
         # Convert SchemaInput to dict and generate records
@@ -95,8 +109,9 @@ async def generate_batch(
 
 # Endpoint for generating batch fake data from file
 @app.post("/generate-from-file", response_model=None)
+@limiter.limit("10/minute")
 async def generate_from_file(
-    file: bytes, background_tasks: BackgroundTasks, num_records: int = 10
+    request: Request, file: bytes, background_tasks: BackgroundTasks, num_records: int = 10
 ) -> StreamingResponse:
     try:
         # Assume the file is JSON formatted
