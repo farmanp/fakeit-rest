@@ -2,8 +2,9 @@ import concurrent.futures
 import datetime
 import json
 import os
+import uuid
 from threading import Semaphore
-from typing import Any, AsyncGenerator, List
+from typing import Any, AsyncGenerator, Dict, List
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -29,6 +30,9 @@ app.add_middleware(SlowAPIMiddleware)
 MAX_CONCURRENT_TASKS = 5
 background_task_semaphore = Semaphore(MAX_CONCURRENT_TASKS)
 
+# Store background task status
+task_status: Dict[str, str] = {}
+
 
 # Helper function to serialize data for JSON
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -39,12 +43,14 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 
 
 # Helper function to write large data to a file
-def write_large_data_to_file(data, output_file):
+def write_large_data_to_file(data, output_file, task_id):
     try:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(data, f, cls=EnhancedJSONEncoder)
+        task_status[task_id] = "completed"
         print(f"Data successfully written to {output_file}")
     except (OSError, IOError) as e:
+        task_status[task_id] = "failed"
         print(f"Failed to write data to {output_file}: {e}")
     finally:
         background_task_semaphore.release()
@@ -103,15 +109,18 @@ async def generate_batch(
                     status_code=429, detail="Too many concurrent background tasks. Please try again later."
                 )
 
-            output_file = "output/output_large.json"
+            task_id = str(uuid.uuid4())
+            output_file = f"output/output_{task_id}.json"
             if not os.path.exists("output"):
                 os.makedirs("output")
+            task_status[task_id] = "in_progress"
             background_tasks.add_task(
-                write_large_data_to_file,
-                generate_data_in_batches(schema_dict, num_records),
-                output_file,
+                write_large_data_to_file, generate_data_in_batches(schema_dict, num_records), output_file, task_id
             )
-            return {"message": f"Data generation for {num_records} records will be saved to '{output_file}'."}
+            return {
+                "message": f"Data generation for {num_records} records will be saved to '{output_file}'.",
+                "task_id": task_id,
+            }
 
         # Stream data for smaller number of records
         return StreamingResponse(stream_data_in_batches(schema_dict, num_records), media_type="application/json")
@@ -134,17 +143,43 @@ async def generate_from_file(
                     status_code=429, detail="Too many concurrent background tasks. Please try again later."
                 )
 
-            output_file = "output/output_large.json"
+            task_id = str(uuid.uuid4())
+            output_file = f"output/output_{task_id}.json"
             if not os.path.exists("output"):
                 os.makedirs("output")
+            task_status[task_id] = "in_progress"
             background_tasks.add_task(
-                write_large_data_to_file,
-                generate_data_in_batches(schema_dict, num_records),
-                output_file,
+                write_large_data_to_file, generate_data_in_batches(schema_dict, num_records), output_file, task_id
             )
-            return {"message": f"Data generation for {num_records} records will be saved to '{output_file}'."}
+            return {
+                "message": f"Data generation for {num_records} records will be saved to '{output_file}'.",
+                "task_id": task_id,
+            }
 
         # Stream data for smaller number of records
         return StreamingResponse(stream_data_in_batches(schema_dict, num_records), media_type="application/json")
     except (ValueError, json.JSONDecodeError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+# Endpoint to check the status of background tasks
+@app.get("/task-status/{task_id}")
+async def get_task_status(task_id: str) -> dict[str, Any]:
+    status = task_status.get(task_id, "not_found")
+    return {"task_id": task_id, "status": status}
+
+
+# Endpoint for paginated data response
+@app.get("/generate-paginated", response_model=None)
+@limiter.limit("10/minute")
+async def generate_paginated(
+    request: Request, schema: SchemaInput, page: int = 1, page_size: int = 100
+) -> dict[str, Any]:
+    try:
+        schema_dict = schema.dict()
+        total_records = page * page_size
+        data = generate_data_in_batches(schema_dict, total_records, batch_size=page_size)
+        paginated_data = data[(page - 1) * page_size : page * page_size]  # noqa: E203
+        return {"data": paginated_data, "page": page, "page_size": page_size}
+    except ValueError as value_error:
+        raise HTTPException(status_code=400, detail=str(value_error)) from value_error

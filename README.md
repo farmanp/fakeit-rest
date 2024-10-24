@@ -9,6 +9,8 @@ This project is a Python-based API for generating fake data using **FastAPI** an
 ### Key Features:
 - REST API endpoints for generating single or multiple records of fake data.
 - Supports schema definitions in both YAML and JSON formats.
+- Rate limiting and concurrency control for handling requests.
+- Pagination support for large data responses.
 
 ## File Structure
 
@@ -76,13 +78,27 @@ To run this project, you need to have **Python 3.7+** installed. Additionally, i
    - **Method**: `POST`
    - **Body** (same as `/generate-single`)
    - **Query Parameter**: `num_records` (Optional)
-   - **Response**: Returns multiple records of fake data.
+   - **Response**: Returns multiple records of fake data. If `num_records` is greater than 1000, the data will be saved to a file and a `task_id` will be provided to check the status.
 
 3. **Generate Data from File**
    - **Endpoint**: `/generate-from-file`
    - **Method**: `POST`
-   - **Form Data**: Upload a YAML or JSON file containing the schema.
-   - **Response**: Returns generated fake data based on the uploaded schema.
+   - **Form Data**: Upload a JSON file containing the schema.
+   - **Response**: Returns generated fake data based on the uploaded schema. If `num_records` is greater than 1000, the data will be saved to a file and a `task_id` will be provided to check the status.
+
+4. **Check Background Task Status**
+   - **Endpoint**: `/task-status/{task_id}`
+   - **Method**: `GET`
+   - **Path Parameter**: `task_id` (Required)
+   - **Response**: Returns the status of the background task (e.g., `in_progress`, `completed`, `failed`).
+
+5. **Generate Paginated Data**
+   - **Endpoint**: `/generate-paginated`
+   - **Method**: `GET`
+   - **Query Parameters**:
+     - `page` (Optional, default: `1`): Page number to fetch.
+     - `page_size` (Optional, default: `100`): Number of records per page.
+   - **Response**: Returns paginated data for the given schema.
 
 ## Schema Examples
 
@@ -108,9 +124,8 @@ To run this project, you need to have **Python 3.7+** installed. Additionally, i
 If you want to modify the project or add new features, consider using a virtual environment to manage your dependencies:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-pip install -r requirements.txt
+poetry install
+poetry run uvicorn app:app --reload
 ```
 
 ## Contributing
