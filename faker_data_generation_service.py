@@ -78,5 +78,4 @@ def generate_fake_data(schema: Dict[str, Any], num_records: int) -> List[Dict[st
 
     for _ in range(num_records):
         data.append(generate_record(schema["fields"]))
-
     return data
