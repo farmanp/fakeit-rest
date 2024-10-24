@@ -2,6 +2,7 @@ import concurrent.futures
 import datetime
 import json
 import os
+from threading import Semaphore
 from typing import Any, AsyncGenerator, List
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, status
@@ -24,6 +25,10 @@ app.add_exception_handler(
 )
 app.add_middleware(SlowAPIMiddleware)
 
+# Semaphore to limit the number of concurrent background tasks
+MAX_CONCURRENT_TASKS = 5
+background_task_semaphore = Semaphore(MAX_CONCURRENT_TASKS)
+
 
 # Helper function to serialize data for JSON
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -41,6 +46,8 @@ def write_large_data_to_file(data, output_file):
         print(f"Data successfully written to {output_file}")
     except (OSError, IOError) as e:
         print(f"Failed to write data to {output_file}: {e}")
+    finally:
+        background_task_semaphore.release()
 
 
 # Helper function to generate data in batches
@@ -91,6 +98,11 @@ async def generate_batch(
         # Convert SchemaInput to dict and generate records
         schema_dict = schema.dict()
         if num_records > 1000:
+            if not background_task_semaphore.acquire(blocking=False):
+                raise HTTPException(
+                    status_code=429, detail="Too many concurrent background tasks. Please try again later."
+                )
+
             output_file = "output/output_large.json"
             if not os.path.exists("output"):
                 os.makedirs("output")
@@ -117,6 +129,11 @@ async def generate_from_file(
         # Assume the file is JSON formatted
         schema_dict = json.loads(file)
         if num_records > 1000:
+            if not background_task_semaphore.acquire(blocking=False):
+                raise HTTPException(
+                    status_code=429, detail="Too many concurrent background tasks. Please try again later."
+                )
+
             output_file = "output/output_large.json"
             if not os.path.exists("output"):
                 os.makedirs("output")
