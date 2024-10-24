@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["Farman Pirzada <farmann.pirz@gmail.com>"]
 readme = "README.md"
-packages = [{include = "fakeit_rest"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -17,7 +16,6 @@ pytest = "^8.3.3"
 httpx = "^0.27.2"
 asyncio = "^3.4.3"
 python-multipart = "^0.0.12"
-
 
 [build-system]
 requires = ["poetry-core"]
