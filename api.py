@@ -1,28 +1,15 @@
-from __future__ import annotations
-
 import concurrent.futures
 import datetime
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
-from pydantic import BaseModel
 
 from faker_data_generation_service import generate_fake_data
+from models.models import SchemaInput
 
 app = FastAPI()
-
-
-# Define a Pydantic model for handling incoming JSON schema input
-class Field(BaseModel):
-    name: str
-    type: str
-    children: Optional[List[Field]] = None  # Allow nested fields
-
-
-class SchemaInput(BaseModel):
-    fields: List[Dict[str, Any]]
 
 
 # Helper function to serialize data for JSON
