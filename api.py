@@ -34,9 +34,13 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 
 
 # Helper function to write large data to a file
-def write_large_data_to_file(data: List[dict], output_file: str = "output.json") -> None:
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, cls=EnhancedJSONEncoder)
+def write_large_data_to_file(data, output_file):
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        print(f"Data successfully written to {output_file}")
+    except (OSError, IOError) as e:
+        print(f"Failed to write data to {output_file}: {e}")
 
 
 # Helper function to generate data in batches
@@ -67,8 +71,7 @@ async def generate_single(schema: SchemaInput) -> dict[str, Any]:
 # Endpoint for generating batch fake data
 @app.post("/generate-batch", response_model=None)
 async def generate_batch(
-    schema: SchemaInput,
-    num_records: int = 10,
+    schema: SchemaInput, background_tasks: BackgroundTasks, num_records: int = 10  # Add this parameter
 ) -> dict[str, Any]:
     try:
         # Convert SchemaInput to dict and generate records
@@ -77,13 +80,12 @@ async def generate_batch(
             output_file = "output/output_large.json"
             if not os.path.exists("output"):
                 os.makedirs("output")
-            background_tasks = BackgroundTasks()
             background_tasks.add_task(
                 write_large_data_to_file,
                 generate_data_in_batches(schema_dict, num_records),
                 output_file,
             )
-            return {"message": (f"Data generation for {num_records} records " f"will be saved to '{output_file}'.")}
+            return {"message": f"Data generation for {num_records} records will be saved to '{output_file}'."}
 
         # For smaller number of records, generate data and return immediately
         data = generate_data_in_batches(schema_dict, num_records)
