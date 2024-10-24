@@ -2,9 +2,10 @@ import concurrent.futures
 import datetime
 import json
 import os
-from typing import Any, List
+from typing import Any, AsyncGenerator, List
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 
 from faker_data_generation_service import generate_fake_data
 from models.models import SchemaInput
@@ -24,7 +25,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 def write_large_data_to_file(data, output_file):
     try:
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(data, f)
+            json.dump(data, f, cls=EnhancedJSONEncoder)
         print(f"Data successfully written to {output_file}")
     except (OSError, IOError) as e:
         print(f"Failed to write data to {output_file}: {e}")
@@ -43,6 +44,18 @@ def generate_data_in_batches(schema: dict[str, Any], num_records: int, batch_siz
     return data
 
 
+# Stream data in smaller chunks
+async def stream_data_in_batches(schema_dict: dict[str, Any], num_records: int) -> AsyncGenerator[bytes, None]:
+    chunk_size = 100  # Define the number of records to generate per chunk
+    generated_records = 0
+
+    while generated_records < num_records:
+        batch_size = min(chunk_size, num_records - generated_records)
+        data_batch = generate_data_in_batches(schema_dict, batch_size)
+        yield json.dumps(data_batch, cls=EnhancedJSONEncoder).encode("utf-8")
+        generated_records += batch_size
+
+
 # Endpoint for generating a single record of fake data
 @app.post("/generate-single", response_model=None)
 async def generate_single(schema: SchemaInput) -> dict[str, Any]:
@@ -58,8 +71,8 @@ async def generate_single(schema: SchemaInput) -> dict[str, Any]:
 # Endpoint for generating batch fake data
 @app.post("/generate-batch", response_model=None)
 async def generate_batch(
-    schema: SchemaInput, background_tasks: BackgroundTasks, num_records: int = 10  # Add this parameter
-) -> dict[str, Any]:
+    schema: SchemaInput, background_tasks: BackgroundTasks, num_records: int = 10
+) -> StreamingResponse:
     try:
         # Convert SchemaInput to dict and generate records
         schema_dict = schema.dict()
@@ -74,8 +87,32 @@ async def generate_batch(
             )
             return {"message": f"Data generation for {num_records} records will be saved to '{output_file}'."}
 
-        # For smaller number of records, generate data and return immediately
-        data = generate_data_in_batches(schema_dict, num_records)
-        return {"data": data}
+        # Stream data for smaller number of records
+        return StreamingResponse(stream_data_in_batches(schema_dict, num_records), media_type="application/json")
     except ValueError as value_error:
         raise HTTPException(status_code=400, detail=str(value_error)) from value_error
+
+
+# Endpoint for generating batch fake data from file
+@app.post("/generate-from-file", response_model=None)
+async def generate_from_file(
+    file: bytes, background_tasks: BackgroundTasks, num_records: int = 10
+) -> StreamingResponse:
+    try:
+        # Assume the file is JSON formatted
+        schema_dict = json.loads(file)
+        if num_records > 1000:
+            output_file = "output/output_large.json"
+            if not os.path.exists("output"):
+                os.makedirs("output")
+            background_tasks.add_task(
+                write_large_data_to_file,
+                generate_data_in_batches(schema_dict, num_records),
+                output_file,
+            )
+            return {"message": f"Data generation for {num_records} records will be saved to '{output_file}'."}
+
+        # Stream data for smaller number of records
+        return StreamingResponse(stream_data_in_batches(schema_dict, num_records), media_type="application/json")
+    except (ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
