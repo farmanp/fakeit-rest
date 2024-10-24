@@ -31,7 +31,7 @@ target-version = ["py311"]
 
 [tool.flake8]
 max-line-length = 120
-ignore = ["E501"]
+ignore = ["E501", "E203"]
 
 [tool.isort]
 profile = "black"
