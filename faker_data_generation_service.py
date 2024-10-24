@@ -1,14 +1,17 @@
 # faker_data_generation.py
+from __future__ import annotations
 
-import yaml
 import json
-from faker import Faker
 import os
+from typing import Any, Dict, List, Union
+
+from faker import Faker
 
 # Initialize Faker instance
 fake = Faker()
 
-def load_schema(file_path):
+
+def load_schema(file_path: str) -> Dict[str, Any]:
     """
     Load a schema from a file.
 
@@ -25,56 +28,54 @@ def load_schema(file_path):
         ValueError: If the file format is not supported.
     """
     file_extension = os.path.splitext(file_path)[-1].lower()
-    with open(file_path, 'r', encoding='utf-8') as file:
-        if file_extension in ['.yaml', '.yml']:
-            return yaml.safe_load(file)
-        if file_extension == '.json':
+    with open(file_path, "r", encoding="utf-8") as file:
+        if file_extension == ".json":
             return json.load(file)
         raise ValueError("Unsupported file format. Please provide a .yaml, .yml, or .json file.")
 
-    
-def generate_fake_data(schema, num_records=10):
+
+def generate_fake_data(schema: Dict[str, Any], num_records: int) -> List[Dict[str, Any]]:
     """
-    Generate fake data based on a given schema.
+    Generate fake data based on the given schema.
 
     Args:
-        schema (dict): A dictionary defining the structure of the data to be generated.
-                       The schema should have a 'fields' key containing a list of field definitions.
-                       Each field definition is a dictionary with keys 'name' and 'type'.
-        num_records (int, optional): The number of records to generate. Defaults to 10.
+        schema (Dict[str, Any]): The schema definition as a dictionary.
+        num_records (int): The number of records to generate.
 
     Returns:
-        list: A list of dictionaries, each representing a record with generated fake data.
+        List[Dict[str, Any]]: A list of generated records.
     """
-
-    # Map generic field types to Faker methods
-    faker_type_map = {
-        "string": fake.name,
-        "integer": lambda: fake.random_int(min=0, max=100),
-        "email": fake.email,
-        "address": fake.address,
-        # Add more mappings as needed
-    }
-
-    def generate_value(field_type):
-        """Get Faker method based on the type provided in the schema."""
-        faker_method = faker_type_map.get(field_type)
-        if callable(faker_method):
-            return faker_method()
-        else:
-            print(f"Warning: '{field_type}' is not a valid type. Returning None.")
-            return None
-
     data = []
-    for _ in range(num_records):
-        record = {}
-        for field in schema['fields']:
-            field_name = field.get('name')
-            field_type = field.get('type')
-            if field_name and field_type:
-                record[field_name] = generate_value(field_type)
-            else:
-                record[field_name] = None
-        data.append(record)
 
+    def generate_record(fields: List[Dict[str, Any]]) -> Dict[str, Any]:
+        record: Dict[str, Any] = {}
+        for field in fields:
+            field_name = field.get("name")
+            field_type = field.get("type")
+            children: Union[None, List[Dict[str, Any]]] = field.get("children")
+
+            # Generate value based on field type
+            if field_type == "string":
+                record[field_name] = generate_specific_string(field_name)
+            elif field_type == "integer":
+                record[field_name] = fake.random_int(min=1, max=100)
+            elif field_type == "email":
+                record[field_name] = fake.email()
+            elif field_type == "object" and children:
+                # Recursively generate nested fields if type is object
+                record[field_name] = generate_record(children)
+            else:
+                record[field_name] = None  # Default value for unsupported types
+        return record
+
+    def generate_specific_string(field_name: str) -> str:
+        field_generators = {
+            "street": fake.street_name,
+            "city": fake.city,
+            "zipcode": fake.zipcode,
+        }
+        return field_generators.get(field_name, fake.name)()
+
+    for _ in range(num_records):
+        data.append(generate_record(schema["fields"]))
     return data

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import concurrent.futures
 import datetime
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel
@@ -13,6 +15,12 @@ app = FastAPI()
 
 
 # Define a Pydantic model for handling incoming JSON schema input
+class Field(BaseModel):
+    name: str
+    type: str
+    children: Optional[List[Field]] = None  # Allow nested fields
+
+
 class SchemaInput(BaseModel):
     fields: List[Dict[str, Any]]
 
@@ -49,7 +57,7 @@ def generate_data_in_batches(schema: dict[str, Any], num_records: int, batch_siz
 async def generate_single(schema: SchemaInput) -> dict[str, Any]:
     try:
         # Convert SchemaInput to dict and generate one record
-        schema_dict: dict[str, Any] = schema.model_dump()
+        schema_dict: dict[str, Any] = schema.model_dump_json()
         data = generate_fake_data(schema_dict, 1)
         return {"data": data[0]}
     except ValueError as value_error:
