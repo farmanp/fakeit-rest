@@ -1,25 +1,28 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.routing import APIRouter
-
-from api import app as api_app  # Assuming that your existing REST API is in `api.py` file
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Include your existing REST API routes
-router = APIRouter()
+# Add CORS middleware to allow WebSocket connections
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change to specific origins as needed
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-router.include_router(api_app.router)
-app.include_router(router)
 
-
-# WebSocket endpoint that interacts directly with the client-generated data
-@app.websocket("/ws/fake-events")
-async def websocket_rest_endpoint(websocket: WebSocket):
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            # Receive data (as JSON string) from the client
             data = await websocket.receive_text()
-            await websocket.send_text(f"Data received: {data}")
+            if data == "generate-single":
+                response = {"message": "Generated single data successfully"}
+                await websocket.send_json(response)
+            else:
+                await websocket.send_text(f"Unknown command: {data}")
     except WebSocketDisconnect:
         print("Client disconnected")
