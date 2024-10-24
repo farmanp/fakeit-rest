@@ -59,30 +59,25 @@ def generate_fake_data(schema: Dict[str, Any], num_records: int) -> List[Dict[st
 
             # Generate value based on field type
             if field_type == "string":
-                record[field_name] = (
-                    fake.name()
-                    if field_name not in ["street", "city", "zipcode"]
-                    else generate_specific_string(field_name)
-                )
+                record[field_name] = generate_specific_string(field_name)
             elif field_type == "integer":
                 record[field_name] = fake.random_int(min=1, max=100)
             elif field_type == "email":
                 record[field_name] = fake.email()
             elif field_type == "object" and children:
                 # Recursively generate nested fields if type is object
-                record[field_name] = generate_record(children)
+                record[field_name] = json.dumps(generate_record(children))
             else:
-                record[field_name] = None  # Default value for unsupported types
+                record[field_name] = ""  # Default value for unsupported types
         return record
 
     def generate_specific_string(field_name: str) -> str:
-        if field_name == "street":
-            return fake.street_name()
-        elif field_name == "city":
-            return fake.city()
-        elif field_name == "zipcode":
-            return fake.zipcode()
-        return fake.name()
+        field_generators = {
+            "street": fake.street_name,
+            "city": fake.city,
+            "zipcode": fake.zipcode,
+        }
+        return field_generators.get(field_name, fake.name)()
 
     for _ in range(num_records):
         data.append(generate_record(schema["fields"]))
