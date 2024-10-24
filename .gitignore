@@ -99,5 +99,8 @@ prof/
 logs/
 log/
 
+# Output
+/output/
+
 # Poetry lock file
 poetry.lock
