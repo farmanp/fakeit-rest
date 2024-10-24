@@ -1,21 +1,10 @@
-import sys
-import os
 import pytest
 import json
-
-# TODO: Find better way to add the app directory to the path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from fastapi.testclient import TestClient
 from app import app
 
 
 client = TestClient(app)
-
-
-from fastapi.testclient import TestClient
-from app import app
-
 # Test single record generation endpoint
 def test_generate_single():
     schema = {
