@@ -22,7 +22,7 @@ class Field(BaseModel):
 
 
 class SchemaInput(BaseModel):
-    fields: List[Field]  # Use the Field class for recursive structure
+    fields: List[Dict[str, Any]]
 
 
 # Helper function to serialize data for JSON
@@ -34,14 +34,14 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 
 
 # Helper function to write large data to a file
-def write_large_data_to_file(data: List[Dict[str, Any]], output_file: str = "output.json") -> None:
+def write_large_data_to_file(data: List[dict], output_file: str = "output.json") -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, cls=EnhancedJSONEncoder)
 
 
 # Helper function to generate data in batches
-def generate_data_in_batches(schema: Dict[str, Any], num_records: int, batch_size: int = 1000) -> List[Dict[str, Any]]:
-    data: List[Dict[str, Any]] = []
+def generate_data_in_batches(schema: dict[str, Any], num_records: int, batch_size: int = 1000) -> List[dict]:
+    data: List[dict] = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = []
         for _ in range(0, num_records, batch_size):
@@ -54,10 +54,10 @@ def generate_data_in_batches(schema: Dict[str, Any], num_records: int, batch_siz
 
 # Endpoint for generating a single record of fake data
 @app.post("/generate-single", response_model=None)
-async def generate_single(schema: SchemaInput) -> Dict[str, Any]:
+async def generate_single(schema: SchemaInput) -> dict[str, Any]:
     try:
         # Convert SchemaInput to dict and generate one record
-        schema_dict: Dict[str, Any] = schema.dict()
+        schema_dict: dict[str, Any] = schema.model_dump_json()
         data = generate_fake_data(schema_dict, 1)
         return {"data": data[0]}
     except ValueError as value_error:
@@ -67,8 +67,9 @@ async def generate_single(schema: SchemaInput) -> Dict[str, Any]:
 # Endpoint for generating batch fake data
 @app.post("/generate-batch", response_model=None)
 async def generate_batch(
-    schema: SchemaInput, num_records: int = 10, background_tasks: BackgroundTasks = BackgroundTasks()
-) -> Dict[str, Any]:
+    schema: SchemaInput,
+    num_records: int = 10,
+) -> dict[str, Any]:
     try:
         # Convert SchemaInput to dict and generate records
         schema_dict = schema.dict()
@@ -76,12 +77,13 @@ async def generate_batch(
             output_file = "output/output_large.json"
             if not os.path.exists("output"):
                 os.makedirs("output")
+            background_tasks = BackgroundTasks()
             background_tasks.add_task(
                 write_large_data_to_file,
                 generate_data_in_batches(schema_dict, num_records),
                 output_file,
             )
-            return {"message": f"Data generation for {num_records} records will be saved to '{output_file}'."}
+            return {"message": (f"Data generation for {num_records} records " f"will be saved to '{output_file}'.")}
 
         # For smaller number of records, generate data and return immediately
         data = generate_data_in_batches(schema_dict, num_records)

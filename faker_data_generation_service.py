@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
-# import yaml
 from faker import Faker
 
 # Initialize Faker instance
@@ -30,8 +29,6 @@ def load_schema(file_path: str) -> Dict[str, Any]:
     """
     file_extension = os.path.splitext(file_path)[-1].lower()
     with open(file_path, "r", encoding="utf-8") as file:
-        # if file_extension in [".yaml", ".yml"]:
-        #     return yaml.safe_load(file)
         if file_extension == ".json":
             return json.load(file)
         raise ValueError("Unsupported file format. Please provide a .yaml, .yml, or .json file.")
@@ -51,11 +48,11 @@ def generate_fake_data(schema: Dict[str, Any], num_records: int) -> List[Dict[st
     data = []
 
     def generate_record(fields: List[Dict[str, Any]]) -> Dict[str, Any]:
-        record = {}
+        record: Dict[str, Any] = {}
         for field in fields:
             field_name = field.get("name")
             field_type = field.get("type")
-            children = field.get("children")
+            children: Union[None, List[Dict[str, Any]]] = field.get("children")
 
             # Generate value based on field type
             if field_type == "string":
@@ -66,9 +63,9 @@ def generate_fake_data(schema: Dict[str, Any], num_records: int) -> List[Dict[st
                 record[field_name] = fake.email()
             elif field_type == "object" and children:
                 # Recursively generate nested fields if type is object
-                record[field_name] = json.dumps(generate_record(children))
+                record[field_name] = generate_record(children)
             else:
-                record[field_name] = ""  # Default value for unsupported types
+                record[field_name] = None  # Default value for unsupported types
         return record
 
     def generate_specific_string(field_name: str) -> str:
