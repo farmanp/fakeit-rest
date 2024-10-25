@@ -1,28 +1,38 @@
+import argparse
 import asyncio
 import json
 
 import websockets
-from faker import Faker
-
-fake = Faker()
 
 
-# Function to generate fake data
-def generate_single_data():
-    return {"name": fake.first_name(), "email": fake.email()}
-
-
-async def websocket_client():
-    uri = "ws://localhost:8000/ws"  # Make sure the URI matches the server's WebSocket endpoint
+async def websocket_client(data_payload, num_records, delay):
+    uri = "ws://localhost:8000/ws"
     async with websockets.connect(uri) as websocket:
-        for _ in range(20):  # Loop to run for approximately 20 iterations
-            data = generate_single_data()  # Generate data locally
-            await websocket.send(json.dumps(data))  # Send the generated data as a JSON string to the WebSocket server
-            response = await websocket.recv()  # Wait for the response from the server
+        for i in range(num_records):
+            await websocket.send(json.dumps(data_payload))  # Send payload as JSON string
+            response = await websocket.recv()  # Wait for response from the server
             print(f"Received: {response}")
-            await asyncio.sleep(1)  # Wait for 1 second before the next request
+
+            # Add delay between sending messages if specified
+            if delay > 0:
+                await asyncio.sleep(delay)
 
 
-# Run the client
+# Main function to parse arguments and run the client
 if __name__ == "__main__":
-    asyncio.run(websocket_client())
+    parser = argparse.ArgumentParser(description="WebSocket Client to send data to WebSocket server.")
+    parser.add_argument("--data", type=str, required=True, help="JSON string to be sent to the WebSocket server.")
+    parser.add_argument("--num_records", type=int, default=1, help="Number of times to send the payload.")
+    parser.add_argument("--delay", type=float, default=0, help="Delay in seconds between each message.")
+
+    args = parser.parse_args()
+
+    # Parse the input JSON string
+    try:
+        payload = json.loads(args.data)
+    except json.JSONDecodeError:
+        print("Invalid JSON format provided. Please provide a valid JSON string.")
+        exit(1)
+
+    # Run the client with the constructed payload, number of records, and delay
+    asyncio.run(websocket_client(payload, args.num_records, args.delay))
