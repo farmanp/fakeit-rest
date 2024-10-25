@@ -1,11 +1,12 @@
-import json
-
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from api import rest_router  # Import the router defined in api.py
+from websocket_endpoint import websocket_router
 
 app = FastAPI()
 
-# Add CORS middleware to allow WebSocket connections
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Change to specific origins as needed
@@ -14,28 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include the REST API router from api.py
+app.include_router(rest_router)
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                # Try parsing data as JSON
-                payload = json.loads(data)
-                if isinstance(payload, dict) and "name" in payload and "email" in payload:
-                    # Customize the response with additional data or information
-                    response = {
-                        "name": payload["name"],
-                        "email": payload["email"],
-                    }
-                    await websocket.send_json(response)
-                else:
-                    response = {"error": "Invalid payload structure"}
-                    await websocket.send_json(response)
-            except json.JSONDecodeError:
-                # If not JSON, consider it as an unknown command
-                await websocket.send_text(f"Unknown command: {data}")
-    except WebSocketDisconnect:
-        print("Client disconnected")
+# Include the WebSocket router from websocket_endpoint.py
+app.include_router(websocket_router)
