@@ -1,28 +1,31 @@
+import argparse
 import asyncio
 import json
 
 import websockets
-from faker import Faker
-
-fake = Faker()
 
 
-# Function to generate fake data
-def generate_single_data():
-    return {"name": fake.first_name(), "email": fake.email()}
-
-
-async def websocket_client():
+async def websocket_client(payload):
     uri = "ws://localhost:8000/ws"
     async with websockets.connect(uri) as websocket:
-        for _ in range(20):  # Loop to run for approximately 20 iterations
-            data = generate_single_data()
-            await websocket.send(json.dumps(data))  # Send data as JSON string
-            response = await websocket.recv()  # Wait for the server response
-            print(f"Received: {response}")
-            await asyncio.sleep(1)  # Wait for 1 second before the next request
+        await websocket.send(json.dumps(payload))  # Send payload as JSON string
+        response = await websocket.recv()  # Wait for response from the server
+        print(f"Received: {response}")
 
 
-# Run the client
+# Main function to parse arguments and run the client
 if __name__ == "__main__":
-    asyncio.run(websocket_client())
+    parser = argparse.ArgumentParser(description="WebSocket Client to send data to WebSocket server.")
+    parser.add_argument("--data", type=str, required=True, help="JSON string to be sent to the WebSocket server.")
+
+    args = parser.parse_args()
+
+    # Parse the input JSON string
+    try:
+        payload = json.loads(args.data)
+    except json.JSONDecodeError:
+        print("Invalid JSON format provided. Please provide a valid JSON string.")
+        exit(1)
+
+    # Run the client with the constructed payload
+    asyncio.run(websocket_client(payload))
