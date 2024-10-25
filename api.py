@@ -81,14 +81,16 @@ async def stream_data_in_batches(schema_dict: dict[str, Any], num_records: int) 
         generated_records += batch_size
 
 
-# Endpoint for generating a single record of fake data
 @app.post("/generate-single", response_model=None)
 @limiter.limit("5/minute")
-async def generate_single(request: Request, schema: SchemaInput) -> dict[str, Any]:
+async def generate_single(request: Request) -> dict[str, Any]:
     try:
-        # Convert SchemaInput to dict and generate one record
-        schema_dict: dict[str, Any] = schema.model_dump_json()
-        data = generate_fake_data(schema_dict, 1)
+        # Parse incoming JSON request body
+        schema = await request.json()  # Parse JSON data from request body
+        if isinstance(schema, str):
+            schema = json.loads(schema)
+
+        data = generate_fake_data(schema, 1)
         return {"data": data[0]}
     except ValueError as value_error:
         raise HTTPException(status_code=400, detail=str(value_error)) from value_error
