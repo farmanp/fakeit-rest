@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import rest_router  # Import the router defined in api.py
-from websocket_endpoint import websocket_router
+from api import rest_router
+from websocket_router import websocket_router
 
 app = FastAPI()
 
@@ -15,8 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the REST API router from api.py
+# Include routers
 app.include_router(rest_router)
-
-# Include the WebSocket router from websocket_endpoint.py
 app.include_router(websocket_router)
