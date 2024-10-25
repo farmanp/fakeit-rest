@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import websockets
 from faker import Faker
@@ -14,12 +15,12 @@ def generate_single_data():
 async def websocket_client():
     uri = "ws://localhost:8000/ws"  # Make sure the URI matches the server's WebSocket endpoint
     async with websockets.connect(uri) as websocket:
-        for _ in range(20):  # Loop to run for approximately 1 minute (20 iterations of 3 seconds each)
+        for _ in range(20):  # Loop to run for approximately 20 iterations
             data = generate_single_data()  # Generate data locally
-            await websocket.send(str(data))  # Send the generated data as a string to the WebSocket server
+            await websocket.send(json.dumps(data))  # Send the generated data as a JSON string to the WebSocket server
             response = await websocket.recv()  # Wait for the response from the server
             print(f"Received: {response}")
-            await asyncio.sleep(1)  # Wait for 3 seconds before the next request
+            await asyncio.sleep(1)  # Wait for 1 second before the next request
 
 
 # Run the client
